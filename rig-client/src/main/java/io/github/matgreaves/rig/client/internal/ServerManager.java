@@ -166,6 +166,7 @@ public final class ServerManager {
         try {
             var client = HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(1))
+                    .proxy(ProxyConfig.fromEnv())
                     .build();
             var request = HttpRequest.newBuilder()
                     .uri(URI.create("http://" + addr + "/health"))
