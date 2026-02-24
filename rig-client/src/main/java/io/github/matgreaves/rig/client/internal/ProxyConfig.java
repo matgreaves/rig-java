@@ -28,7 +28,15 @@ public final class ProxyConfig {
         return new ProxySelector() {
             @Override
             public List<Proxy> select(URI uri) {
-                if (noProxyHosts.contains(uri.getHost())) {
+                String host = uri.getHost();
+
+                // Always bypass proxy for localhost and loopback
+                if (ProxyConfig.isLocalhost(host)) {
+                    return List.of(Proxy.NO_PROXY);
+                }
+
+                // Check NO_PROXY patterns
+                if (ProxyConfig.matchesNoProxy(host, noProxyHosts)) {
                     return List.of(Proxy.NO_PROXY);
                 }
 
@@ -72,5 +80,52 @@ public final class ProxyConfig {
             if (!trimmed.isEmpty()) hosts.add(trimmed);
         }
         return hosts;
+    }
+
+    /**
+     * Returns true if the host is localhost or a loopback address.
+     */
+    private static boolean isLocalhost(String host) {
+        if (host == null) return false;
+        return host.equals("localhost")
+            || host.equals("127.0.0.1")
+            || host.equals("::1")
+            || host.equals("0.0.0.0")
+            || host.startsWith("127.")
+            || host.equals("[::1]");
+    }
+
+    /**
+     * Checks if a host matches any NO_PROXY pattern.
+     * Supports:
+     * - Exact match: "example.com"
+     * - Suffix match with leading dot: ".example.com" matches "foo.example.com"
+     * - IP addresses
+     * - Wildcards: "*" or "*.example.com"
+     */
+    private static boolean matchesNoProxy(String host, Set<String> noProxyPatterns) {
+        if (host == null || noProxyPatterns.isEmpty()) return false;
+
+        for (String pattern : noProxyPatterns) {
+            // Wildcard
+            if (pattern.equals("*")) return true;
+
+            // Exact match
+            if (host.equalsIgnoreCase(pattern)) return true;
+
+            // Suffix match with leading dot
+            if (pattern.startsWith(".") && host.toLowerCase().endsWith(pattern.toLowerCase())) {
+                return true;
+            }
+
+            // Wildcard suffix: "*.example.com"
+            if (pattern.startsWith("*.")) {
+                String suffix = pattern.substring(1); // ".example.com"
+                if (host.equalsIgnoreCase(pattern.substring(2))) return true; // exact: "example.com"
+                if (host.toLowerCase().endsWith(suffix.toLowerCase())) return true; // suffix
+            }
+        }
+
+        return false;
     }
 }
