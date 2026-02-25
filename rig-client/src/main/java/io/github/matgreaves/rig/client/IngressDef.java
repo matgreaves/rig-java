@@ -31,4 +31,9 @@ public record IngressDef(
     public static IngressDef grpc() {
         return new IngressDef(Protocol.GRPC, 0, null, null);
     }
+
+    /** Returns an IngressDef for a Kafka endpoint. */
+    public static IngressDef kafka() {
+        return new IngressDef(Protocol.KAFKA, 0, null, null);
+    }
 }

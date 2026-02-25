@@ -23,5 +23,6 @@ class ProtocolTest {
         assertEquals("tcp", Protocol.TCP.wire());
         assertEquals("http", Protocol.HTTP.wire());
         assertEquals("grpc", Protocol.GRPC.wire());
+        assertEquals("kafka", Protocol.KAFKA.wire());
     }
 }

@@ -17,7 +17,10 @@ public final class WireEvent {
         public String message;
         public CallbackRequest callback;
         public RequestInfo request;
+        public GRPCCallInfo grpc_call;
         public ConnectionInfo connection;
+        public WireEndpoint endpoint;
+        public LogEntry log;
         public String env_dir;
         public Map<String, Map<String, WireEndpoint>> ingresses;
     }
@@ -41,6 +44,24 @@ public final class WireEvent {
         public long bytes_in;
         public long bytes_out;
         public double duration_ms;
+    }
+
+    public static final class GRPCCallInfo {
+        public String source;
+        public String target;
+        public String ingress;
+        public String service;
+        public String method;
+        public String grpc_status;
+        public String grpc_message;
+        public double latency_ms;
+        public long request_size;
+        public long response_size;
+    }
+
+    public static final class LogEntry {
+        public String stream;
+        public String data;
     }
 
     public static final class CallbackRequest {

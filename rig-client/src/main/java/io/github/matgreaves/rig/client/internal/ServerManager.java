@@ -20,7 +20,7 @@ import java.time.Duration;
 public final class ServerManager {
     private ServerManager() {}
 
-    public static final String RIGD_VERSION = "0.1.0";
+    public static final String RIGD_VERSION = "0.2.0";
 
     /**
      * Finds or starts a rigd instance and returns its base URL.
