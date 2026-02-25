@@ -6,7 +6,8 @@ package io.github.matgreaves.rig.connect;
 public enum Protocol {
     TCP("tcp"),
     HTTP("http"),
-    GRPC("grpc");
+    GRPC("grpc"),
+    KAFKA("kafka");
 
     private final String wire;
 

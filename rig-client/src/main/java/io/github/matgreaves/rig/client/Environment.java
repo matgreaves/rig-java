@@ -24,6 +24,7 @@ public final class Environment implements AutoCloseable {
     private final RigHttpClient httpClient;
     private final String serverUrl;
     private final FuncThreads funcThreads;
+    private volatile boolean testFailed;
 
     Environment(
             String id,
@@ -88,6 +89,14 @@ public final class Environment implements AutoCloseable {
     }
 
     /**
+     * Marks the environment as having a failed test. When closed,
+     * this causes {@code reason=test_failed} to be sent to rigd.
+     */
+    public void markFailed() {
+        this.testFailed = true;
+    }
+
+    /**
      * Posts a note to the environment's event timeline on rigd.
      * Used by extensions (e.g. JUnit 5) to report test results.
      */
@@ -110,16 +119,18 @@ public final class Environment implements AutoCloseable {
     public void close() {
         funcThreads.interruptAll();
         try {
-            String url = "%s/environments/%s?log=true&preserve=%s".formatted(
-                    serverUrl, id, shouldPreserve());
+            String url = "%s/environments/%s?log=true".formatted(serverUrl, id);
+            if (shouldPreserve()) url += "&preserve=true";
+            if (testFailed) url += "&reason=test_failed";
             httpClient.delete(url);
         } catch (Exception ignored) {
             // cleanup must not throw
         }
     }
 
-    private static boolean shouldPreserve() {
-        return "true".equals(System.getenv("RIG_PRESERVE"));
+    private boolean shouldPreserve() {
+        if ("true".equals(System.getenv("RIG_PRESERVE"))) return true;
+        return testFailed && "true".equals(System.getenv("RIG_PRESERVE_ON_FAILURE"));
     }
 
     private static String escape(String s) {

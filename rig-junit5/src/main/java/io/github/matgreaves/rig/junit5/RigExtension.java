@@ -36,6 +36,7 @@ public final class RigExtension
     private final Map<String, ServiceDef> services;
     private final List<RigOption> options;
     private Environment env;
+    private boolean anyTestFailed;
 
     private RigExtension(String name, Map<String, ServiceDef> services, List<RigOption> options) {
         this.name = name;
@@ -58,6 +59,9 @@ public final class RigExtension
     @Override
     public void afterAll(ExtensionContext context) {
         if (env != null) {
+            if (anyTestFailed) {
+                env.markFailed();
+            }
             env.close();
             env = null;
         }
@@ -74,6 +78,7 @@ public final class RigExtension
 
     @Override
     public void testFailed(ExtensionContext context, Throwable cause) {
+        anyTestFailed = true;
         if (env != null) {
             env.postNote("FAIL: " + context.getDisplayName() + " - " + cause.getMessage());
         }
