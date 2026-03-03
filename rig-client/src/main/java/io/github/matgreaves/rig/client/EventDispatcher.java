@@ -178,17 +178,34 @@ public final class EventDispatcher {
         );
     }
 
+    static Endpoint wireToEndpoint(WireEvent.WireEndpoint ep) {
+        String host = "";
+        int port = 0;
+        if (ep.hostport != null && !ep.hostport.isEmpty()) {
+            int sep = ep.hostport.lastIndexOf(':');
+            if (sep > 0) {
+                host = ep.hostport.substring(0, sep);
+                // Strip surrounding brackets for IPv6 (e.g. "[::1]")
+                if (host.startsWith("[") && host.endsWith("]")) {
+                    host = host.substring(1, host.length() - 1);
+                }
+                try { port = Integer.parseInt(ep.hostport.substring(sep + 1)); }
+                catch (NumberFormatException ignored) {}
+            }
+        }
+        Protocol protocol = null;
+        if (ep.protocol != null && !ep.protocol.isEmpty()) {
+            try { protocol = Protocol.fromWire(ep.protocol); }
+            catch (IllegalArgumentException ignored) {}
+        }
+        return new Endpoint(host, port, protocol, ep.attributes);
+    }
+
     private Map<String, Endpoint> convertEndpoints(Map<String, WireEvent.WireEndpoint> eps) {
         if (eps == null) return null;
         var out = new LinkedHashMap<String, Endpoint>();
         for (var entry : eps.entrySet()) {
-            var ep = entry.getValue();
-            Protocol protocol = null;
-            if (ep.protocol != null && !ep.protocol.isEmpty()) {
-                try { protocol = Protocol.fromWire(ep.protocol); }
-                catch (IllegalArgumentException ignored) {}
-            }
-            out.put(entry.getKey(), new Endpoint(ep.host, ep.port, protocol, ep.attributes));
+            out.put(entry.getKey(), wireToEndpoint(entry.getValue()));
         }
         return out;
     }
@@ -199,14 +216,7 @@ public final class EventDispatcher {
             for (var svcEntry : ev.ingresses.entrySet()) {
                 var ingresses = new LinkedHashMap<String, Endpoint>();
                 for (var ingEntry : svcEntry.getValue().entrySet()) {
-                    var ep = ingEntry.getValue();
-                    Protocol protocol = null;
-                    if (ep.protocol != null && !ep.protocol.isEmpty()) {
-                        try { protocol = Protocol.fromWire(ep.protocol); }
-                        catch (IllegalArgumentException ignored) {}
-                    }
-                    ingresses.put(ingEntry.getKey(),
-                            new Endpoint(ep.host, ep.port, protocol, ep.attributes));
+                    ingresses.put(ingEntry.getKey(), wireToEndpoint(ingEntry.getValue()));
                 }
                 services.put(svcEntry.getKey(), new ResolvedService(ingresses));
             }

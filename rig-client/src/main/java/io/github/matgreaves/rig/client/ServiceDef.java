@@ -5,5 +5,5 @@ package io.github.matgreaves.rig.client;
  * Sealed — only types in this package implement it.
  */
 public sealed interface ServiceDef permits
-        GoDef, FuncDef, ProcessDef, ContainerDef, PostgresDef, TemporalDef, CustomDef {
+        GoDef, FuncDef, ProcessDef, ContainerDef, PostgresDef, TemporalDef, RedisDef, S3Def, SqsDef, CustomDef {
 }

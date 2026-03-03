@@ -154,6 +154,63 @@ class SpecConverterTest {
     }
 
     @Test
+    void redisConversion() {
+        var registry = new HookRegistry();
+        var spec = SpecConverter.toSpec("test",
+                Map.of("cache", Rig.redis()),
+                registry, true);
+
+        var svc = spec.services.get("cache");
+        assertEquals("redis", svc.type);
+        assertNull(svc.config);
+        assertNotNull(svc.ingresses.get("default"));
+        assertEquals("tcp", svc.ingresses.get("default").protocol);
+        assertEquals(6379, svc.ingresses.get("default").container_port);
+    }
+
+    @Test
+    void redisWithImage() {
+        var registry = new HookRegistry();
+        var spec = SpecConverter.toSpec("test",
+                Map.of("cache", Rig.redis().image("redis:7-alpine")),
+                registry, true);
+
+        var svc = spec.services.get("cache");
+        String json = gson.toJson(svc.config);
+        assertTrue(json.contains("redis:7-alpine"));
+    }
+
+    @Test
+    void s3Conversion() {
+        var registry = new HookRegistry();
+        var spec = SpecConverter.toSpec("test",
+                Map.of("store", Rig.s3()),
+                registry, true);
+
+        var svc = spec.services.get("store");
+        assertEquals("s3", svc.type);
+        assertNull(svc.config);
+        assertNotNull(svc.ingresses.get("default"));
+        assertEquals("tcp", svc.ingresses.get("default").protocol);
+        assertEquals(8333, svc.ingresses.get("default").container_port);
+    }
+
+    @Test
+    void sqsConversion() {
+        var registry = new HookRegistry();
+        var spec = SpecConverter.toSpec("test",
+                Map.of("queue", Rig.sqs()),
+                registry, true);
+
+        var svc = spec.services.get("queue");
+        assertEquals("sqs", svc.type);
+        assertNull(svc.config);
+        assertNotNull(svc.ingresses.get("default"));
+        assertEquals("tcp", svc.ingresses.get("default").protocol);
+        assertEquals(9324, svc.ingresses.get("default").container_port);
+    }
+
+    @Test
     void processConversion() {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",

@@ -80,8 +80,7 @@ public final class WireEvent {
     }
 
     public static final class WireEndpoint {
-        public String host;
-        public int port;
+        public String hostport;
         public String protocol;
         public Map<String, Object> attributes;
     }

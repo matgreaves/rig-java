@@ -39,6 +39,12 @@ class AttrsTest {
         assertNotNull(Attrs.TEMPORAL_ADDRESS);
         assertNotNull(Attrs.TEMPORAL_NAMESPACE);
         assertNotNull(Attrs.REDIS_URL);
+        assertNotNull(Attrs.S3_ENDPOINT);
+        assertNotNull(Attrs.S3_BUCKET);
+        assertNotNull(Attrs.AWS_ACCESS_KEY_ID);
+        assertNotNull(Attrs.AWS_SECRET_ACCESS_KEY);
+        assertNotNull(Attrs.SQS_ENDPOINT);
+        assertNotNull(Attrs.SQS_QUEUE_URL);
         assertNotNull(Attrs.SECURE);
     }
 }

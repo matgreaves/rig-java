@@ -291,6 +291,132 @@ class RigIntegrationTest {
 		}
 	}
 
+	@Test
+	void redisService() throws Exception {
+		try (
+			var env = Rig.up(
+				"redis-test",
+				Map.of("cache", Rig.redis()),
+				Rig.withTimeout(TIMEOUT)
+			)
+		) {
+			var ep = env.endpoint("cache");
+
+			assertFalse(
+				ep.attr("REDIS_URL").isEmpty(),
+				"REDIS_URL should be set"
+			);
+			assertTrue(
+				ep.attr("REDIS_URL").startsWith("redis://"),
+				"REDIS_URL should start with redis://"
+			);
+
+			// PING via raw Redis protocol.
+			try (var sock = new java.net.Socket(ep.host(), ep.port())) {
+				sock.setSoTimeout(5000);
+				var out = sock.getOutputStream();
+				var in = new java.io.BufferedReader(
+					new java.io.InputStreamReader(sock.getInputStream())
+				);
+				out.write("PING\r\n".getBytes());
+				out.flush();
+				String reply = in.readLine();
+				assertEquals("+PONG", reply, "Redis should respond to PING");
+			}
+		}
+	}
+
+	@Test
+	void s3Service() throws Exception {
+		try (
+			var env = Rig.up(
+				"s3-test",
+				Map.of("store", Rig.s3()),
+				Rig.withTimeout(TIMEOUT)
+			)
+		) {
+			var ep = env.endpoint("store");
+
+			String endpoint = ep.attr("S3_ENDPOINT");
+			String bucket = ep.attr("S3_BUCKET");
+			assertFalse(endpoint.isEmpty(), "S3_ENDPOINT should be set");
+			assertFalse(bucket.isEmpty(), "S3_BUCKET should be set");
+			assertEquals("rig", ep.attr("AWS_ACCESS_KEY_ID"));
+			assertEquals("rig", ep.attr("AWS_SECRET_ACCESS_KEY"));
+
+			// PUT an object then GET it back via the S3 HTTP API.
+			var client = HttpClient.newHttpClient();
+			String objectUrl = "%s/%s/test.txt".formatted(endpoint, bucket);
+
+			var put = HttpRequest.newBuilder()
+				.uri(URI.create(objectUrl))
+				.timeout(Duration.ofSeconds(10))
+				.PUT(HttpRequest.BodyPublishers.ofString("hello s3"))
+				.build();
+			var putResp = client.send(put, HttpResponse.BodyHandlers.ofString());
+			assertEquals(200, putResp.statusCode(),
+				"PUT should succeed, got: " + putResp.body());
+
+			var get = HttpRequest.newBuilder()
+				.uri(URI.create(objectUrl))
+				.timeout(Duration.ofSeconds(10))
+				.GET()
+				.build();
+			var getResp = client.send(get, HttpResponse.BodyHandlers.ofString());
+			assertEquals(200, getResp.statusCode());
+			assertEquals("hello s3", getResp.body());
+		}
+	}
+
+	@Test
+	void sqsService() throws Exception {
+		try (
+			var env = Rig.up(
+				"sqs-test",
+				Map.of("queue", Rig.sqs()),
+				Rig.withTimeout(TIMEOUT)
+			)
+		) {
+			var ep = env.endpoint("queue");
+
+			String endpoint = ep.attr("SQS_ENDPOINT");
+			String queueUrl = ep.attr("SQS_QUEUE_URL");
+			assertFalse(endpoint.isEmpty(), "SQS_ENDPOINT should be set");
+			assertFalse(queueUrl.isEmpty(), "SQS_QUEUE_URL should be set");
+			assertEquals("rig", ep.attr("AWS_ACCESS_KEY_ID"));
+			assertEquals("rig", ep.attr("AWS_SECRET_ACCESS_KEY"));
+
+			// SQS_QUEUE_URL points to the internal container address;
+			// rewrite it to go through the proxy endpoint instead.
+			String queuePath = URI.create(queueUrl).getPath();
+			String proxyQueueUrl = endpoint + queuePath;
+
+			// Send a message then receive it via the SQS HTTP query API.
+			var client = HttpClient.newHttpClient();
+
+			var send = HttpRequest.newBuilder()
+				.uri(URI.create(proxyQueueUrl +
+					"?Action=SendMessage&MessageBody=hello+sqs"))
+				.timeout(Duration.ofSeconds(10))
+				.GET()
+				.build();
+			var sendResp = client.send(send, HttpResponse.BodyHandlers.ofString());
+			assertEquals(200, sendResp.statusCode(),
+				"SendMessage should succeed, got: " + sendResp.body());
+
+			var recv = HttpRequest.newBuilder()
+				.uri(URI.create(proxyQueueUrl +
+					"?Action=ReceiveMessage&MaxNumberOfMessages=1&WaitTimeSeconds=5"))
+				.timeout(Duration.ofSeconds(10))
+				.GET()
+				.build();
+			var recvResp = client.send(recv, HttpResponse.BodyHandlers.ofString());
+			assertEquals(200, recvResp.statusCode());
+			assertTrue(recvResp.body().contains("hello sqs"),
+				"Should receive the sent message");
+		}
+	}
+
 	private static HttpResponse<String> httpGet(String url)
 		throws IOException, InterruptedException {
 		var client = HttpClient.newHttpClient();

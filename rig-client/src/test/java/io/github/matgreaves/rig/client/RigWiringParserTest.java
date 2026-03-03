@@ -13,16 +13,14 @@ class RigWiringParserTest {
                 {
                   "ingresses": {
                     "default": {
-                      "host": "127.0.0.1",
-                      "port": 8080,
+                      "hostport": "127.0.0.1:8080",
                       "protocol": "http",
                       "attributes": {"key": "value"}
                     }
                   },
                   "egresses": {
                     "db": {
-                      "host": "127.0.0.1",
-                      "port": 5432,
+                      "hostport": "127.0.0.1:5432",
                       "protocol": "tcp"
                     }
                   },
@@ -56,7 +54,7 @@ class RigWiringParserTest {
         String json = """
                 {
                   "ingresses": {
-                    "default": {"host": "localhost", "port": 3000, "protocol": "http"}
+                    "default": {"hostport": "localhost:3000", "protocol": "http"}
                   }
                 }
                 """;

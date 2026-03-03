@@ -102,7 +102,7 @@ public final class Environment implements AutoCloseable {
      */
     public void postNote(String message) {
         try {
-            String json = "{\"type\":\"test.note\",\"message\":\"%s\"}"
+            String json = "{\"type\":\"test.note\",\"error\":\"%s\"}"
                     .formatted(escape(message));
             String url = "%s/environments/%s/events".formatted(serverUrl, id);
             httpClient.postJson(url, json);
