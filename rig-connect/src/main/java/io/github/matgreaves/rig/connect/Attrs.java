@@ -20,6 +20,16 @@ public final class Attrs {
     // Redis
     public static final Attr<String> REDIS_URL = Attr.ofString("REDIS_URL");
 
+    // S3
+    public static final Attr<String> S3_ENDPOINT = Attr.ofString("S3_ENDPOINT");
+    public static final Attr<String> S3_BUCKET = Attr.ofString("S3_BUCKET");
+    public static final Attr<String> AWS_ACCESS_KEY_ID = Attr.ofString("AWS_ACCESS_KEY_ID");
+    public static final Attr<String> AWS_SECRET_ACCESS_KEY = Attr.ofString("AWS_SECRET_ACCESS_KEY");
+
+    // SQS
+    public static final Attr<String> SQS_ENDPOINT = Attr.ofString("SQS_ENDPOINT");
+    public static final Attr<String> SQS_QUEUE_URL = Attr.ofString("SQS_QUEUE_URL");
+
     // Cross-cutting
     public static final Attr<Boolean> SECURE = Attr.ofBoolean("SECURE");
 

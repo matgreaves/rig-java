@@ -69,12 +69,25 @@ final class RigWiringParser {
         var out = new LinkedHashMap<String, Endpoint>();
         for (var entry : eps.entrySet()) {
             var ep = entry.getValue();
+            String host = "";
+            int port = 0;
+            if (ep.hostport != null && !ep.hostport.isEmpty()) {
+                int sep = ep.hostport.lastIndexOf(':');
+                if (sep > 0) {
+                    host = ep.hostport.substring(0, sep);
+                    if (host.startsWith("[") && host.endsWith("]")) {
+                        host = host.substring(1, host.length() - 1);
+                    }
+                    try { port = Integer.parseInt(ep.hostport.substring(sep + 1)); }
+                    catch (NumberFormatException ignored) {}
+                }
+            }
             Protocol protocol = null;
             if (ep.protocol != null && !ep.protocol.isEmpty()) {
                 try { protocol = Protocol.fromWire(ep.protocol); }
                 catch (IllegalArgumentException ignored) {}
             }
-            out.put(entry.getKey(), new Endpoint(ep.host, ep.port, protocol, ep.attributes));
+            out.put(entry.getKey(), new Endpoint(host, port, protocol, ep.attributes));
         }
         return out;
     }
@@ -89,8 +102,7 @@ final class RigWiringParser {
     }
 
     private static class WireEndpoint {
-        String host;
-        int port;
+        String hostport;
         String protocol;
         Map<String, Object> attributes;
     }

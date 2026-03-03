@@ -39,6 +39,9 @@ final class SpecConverter {
             case ContainerDef d -> containerToSpec(d, registry);
             case PostgresDef d -> postgresToSpec(d, registry);
             case TemporalDef d -> temporalToSpec(d, registry);
+            case RedisDef d -> redisToSpec(d, registry);
+            case S3Def d -> s3ToSpec(d, registry);
+            case SqsDef d -> sqsToSpec(d, registry);
             case CustomDef d -> customToSpec(d, registry);
         };
     }
@@ -115,6 +118,51 @@ final class SpecConverter {
         var svc = new SpecService();
         svc.type = "postgres";
         svc.config = config;
+        svc.ingresses = Map.of("default", ingress);
+        svc.egresses = egressesToSpec(d.egresses);
+        svc.hooks = hooksToSpec(d.prestartHooks, d.initHooks, registry);
+        return svc;
+    }
+
+    private static SpecService redisToSpec(RedisDef d, HookRegistry registry) {
+        Map<String, String> config = null;
+        if (!d.image.isEmpty()) {
+            config = Map.of("image", d.image);
+        }
+
+        var ingress = new SpecIngressSpec();
+        ingress.protocol = "tcp";
+        ingress.container_port = 6379;
+
+        var svc = new SpecService();
+        svc.type = "redis";
+        svc.config = config;
+        svc.ingresses = Map.of("default", ingress);
+        svc.egresses = egressesToSpec(d.egresses);
+        svc.hooks = hooksToSpec(d.prestartHooks, d.initHooks, registry);
+        return svc;
+    }
+
+    private static SpecService s3ToSpec(S3Def d, HookRegistry registry) {
+        var ingress = new SpecIngressSpec();
+        ingress.protocol = "tcp";
+        ingress.container_port = 8333;
+
+        var svc = new SpecService();
+        svc.type = "s3";
+        svc.ingresses = Map.of("default", ingress);
+        svc.egresses = egressesToSpec(d.egresses);
+        svc.hooks = hooksToSpec(d.prestartHooks, d.initHooks, registry);
+        return svc;
+    }
+
+    private static SpecService sqsToSpec(SqsDef d, HookRegistry registry) {
+        var ingress = new SpecIngressSpec();
+        ingress.protocol = "tcp";
+        ingress.container_port = 9324;
+
+        var svc = new SpecService();
+        svc.type = "sqs";
         svc.ingresses = Map.of("default", ingress);
         svc.egresses = egressesToSpec(d.egresses);
         svc.hooks = hooksToSpec(d.prestartHooks, d.initHooks, registry);

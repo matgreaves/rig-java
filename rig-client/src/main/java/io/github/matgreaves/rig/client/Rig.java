@@ -124,6 +124,21 @@ public final class Rig {
         return new PostgresDef();
     }
 
+    /** Creates a Redis service definition. */
+    public static RedisDef redis() {
+        return new RedisDef();
+    }
+
+    /** Creates an S3 service definition. */
+    public static S3Def s3() {
+        return new S3Def();
+    }
+
+    /** Creates an SQS service definition. */
+    public static SqsDef sqs() {
+        return new SqsDef();
+    }
+
     /** Creates a Temporal service definition. */
     public static TemporalDef temporal() {
         return new TemporalDef();
