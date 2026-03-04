@@ -99,7 +99,17 @@ public final class Rig {
 
         // Stream SSE events until environment.up.
         var dispatcher = new EventDispatcher(httpClient, serverUrl, envId, registry, funcThreads);
-        return dispatcher.streamUntilReady();
+        try {
+            return dispatcher.streamUntilReady();
+        } catch (Exception e) {
+            // Environment was created but streaming failed — send DELETE so rigd
+            // writes event logs and cleans up resources.
+            funcThreads.interruptAll();
+            try {
+                httpClient.delete("%s/environments/%s?log=true&reason=test_failed".formatted(serverUrl, envId));
+            } catch (Exception ignored) {}
+            throw e;
+        }
     }
 
     // --- Service factories ---
