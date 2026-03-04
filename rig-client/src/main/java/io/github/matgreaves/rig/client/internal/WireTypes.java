@@ -16,6 +16,8 @@ public final class WireTypes {
         public String name;
         public Map<String, SpecService> services;
         public boolean observe;
+        public Map<String, String> host_env;
+        public String dir;
     }
 
     public static final class SpecService {

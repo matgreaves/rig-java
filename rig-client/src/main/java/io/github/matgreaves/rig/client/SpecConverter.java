@@ -5,7 +5,6 @@ import io.github.matgreaves.rig.client.internal.HookDef;
 import io.github.matgreaves.rig.client.internal.WireTypes;
 import io.github.matgreaves.rig.client.internal.WireTypes.*;
 
-import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -24,6 +23,8 @@ final class SpecConverter {
         var spec = new SpecEnvironment();
         spec.name = name;
         spec.observe = observe;
+        spec.host_env = new LinkedHashMap<>(System.getenv());
+        spec.dir = System.getProperty("user.dir");
         spec.services = new LinkedHashMap<>();
         for (var entry : services.entrySet()) {
             spec.services.put(entry.getKey(), serviceToSpec(entry.getValue(), registry));
@@ -47,14 +48,9 @@ final class SpecConverter {
     }
 
     private static SpecService goToSpec(GoDef d, HookRegistry registry) {
-        String module = d.module;
-        if (!Path.of(module).isAbsolute()) {
-            module = Path.of(System.getProperty("user.dir"), module).toString();
-        }
-
         var svc = new SpecService();
         svc.type = "go";
-        svc.config = Map.of("module", module);
+        svc.config = Map.of("module", d.module);
         svc.args = d.args.isEmpty() ? null : List.copyOf(d.args);
         svc.ingresses = ingressesToSpec(d.ingresses);
         svc.egresses = egressesToSpec(d.egresses);

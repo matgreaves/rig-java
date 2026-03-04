@@ -13,6 +13,32 @@ class SpecConverterTest {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     @Test
+    void specIncludesHostEnvAndDir() {
+        var registry = new HookRegistry();
+        var spec = SpecConverter.toSpec("test",
+                Map.of("db", Rig.postgres()),
+                registry, true);
+
+        assertNotNull(spec.host_env, "host_env should be set");
+        assertFalse(spec.host_env.isEmpty(), "host_env should not be empty");
+        assertNotNull(spec.dir, "dir should be set");
+        assertFalse(spec.dir.isEmpty(), "dir should not be empty");
+    }
+
+    @Test
+    void goRelativeModuleSentAsIs() {
+        var registry = new HookRegistry();
+        var spec = SpecConverter.toSpec("test",
+                Map.of("api", Rig.go_("./cmd/api")),
+                registry, true);
+
+        var api = spec.services.get("api");
+        String json = gson.toJson(api.config);
+        assertTrue(json.contains("./cmd/api"),
+                "relative module should be sent as-is, got: " + json);
+    }
+
+    @Test
     void postgresConversion() {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
