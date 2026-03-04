@@ -280,6 +280,32 @@ class RigIntegrationTest {
 	}
 
 	@Test
+	void processServiceRunsEnv() {
+		try (
+			var env = Rig.up(
+				"process-env-test",
+				Map.of("app", Rig.process("env").noIngress()),
+				Rig.withTimeout(TIMEOUT)
+			)
+		) {
+			assertNotNull(env.id());
+		}
+	}
+
+	@Test
+	void processServiceWithEmptyArgs() {
+		try (
+			var env = Rig.up(
+				"process-args-test",
+				Map.of("app", Rig.process("env").noIngress().args()),
+				Rig.withTimeout(TIMEOUT)
+			)
+		) {
+			assertNotNull(env.id());
+		}
+	}
+
+	@Test
 	void containerService() throws Exception {
 		try (
 			var env = Rig.up(
