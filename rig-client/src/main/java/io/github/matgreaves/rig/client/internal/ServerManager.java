@@ -22,6 +22,11 @@ public final class ServerManager {
 
     public static final String RIGD_VERSION = "0.7.0";
 
+    // JVM-level lock to prevent OverlappingFileLockException when parallel
+    // tests call ensureServer() concurrently. The file lock alone handles
+    // cross-process safety, but Java's FileLock rejects same-JVM overlaps.
+    private static final Object JVM_LOCK = new Object();
+
     /**
      * Finds or starts a rigd instance and returns its base URL.
      *
@@ -52,68 +57,80 @@ public final class ServerManager {
             return "http://" + addr;
         }
 
-        // Acquire lock to prevent concurrent starts.
-        try {
-            Files.createDirectories(Path.of(rigDir));
-        } catch (IOException e) {
-            throw new RigException("create rig dir: " + e.getMessage(), e);
-        }
-
-        try (var lockChannel = FileChannel.open(lockFile,
-                StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-             FileLock ignored = lockChannel.lock()) {
-
-            // Double-check after acquiring lock.
+        // Acquire JVM-level lock first to prevent OverlappingFileLockException
+        // (Java's FileLock rejects concurrent locks from the same JVM), then
+        // acquire the file lock for cross-process safety.
+        synchronized (JVM_LOCK) {
+            // Re-check fast path after acquiring JVM lock — another thread
+            // may have started rigd while we were waiting.
             addr = readAddrFile(addrFile);
             if (addr != null && probeHealth(addr)) {
                 return "http://" + addr;
             }
 
-            String binPath = binary.path;
-
-            // If no binary found, download.
-            if (binPath == null) {
-                Path destPath = Path.of(rigDir, "bin", "v" + RIGD_VERSION, "rigd");
-                String url = BinaryDownloader.downloadUrl(RIGD_VERSION);
-                BinaryDownloader.download(url, destPath);
-                binPath = destPath.toString();
-            }
-
-            // Start rigd as a detached subprocess.
-            var pb = new ProcessBuilder(binPath, "--idle", "5m", "--rig-dir", rigDir);
-            if (!binary.override) {
-                pb.command().addAll(java.util.List.of("--addr-file", addrFile.toString()));
-            }
-            pb.redirectErrorStream(false);
-
-            // Append stderr to log file.
-            Path logPath = Path.of(rigDir, "rigd.log");
-            pb.redirectError(ProcessBuilder.Redirect.appendTo(logPath.toFile()));
-            pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
-
             try {
-                pb.start();
+                Files.createDirectories(Path.of(rigDir));
             } catch (IOException e) {
-                throw new RigException("start rigd: " + e.getMessage(), e);
+                throw new RigException("create rig dir: " + e.getMessage(), e);
             }
 
-            // Poll for addr file.
-            long deadline = System.currentTimeMillis() + 10_000;
-            while (System.currentTimeMillis() < deadline) {
+            try (var lockChannel = FileChannel.open(lockFile,
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                 FileLock ignored = lockChannel.lock()) {
+
+                // Double-check after acquiring file lock — another process
+                // may have started rigd while we were waiting.
                 addr = readAddrFile(addrFile);
-                if (addr != null && !addr.isEmpty() && probeHealth(addr)) {
+                if (addr != null && probeHealth(addr)) {
                     return "http://" + addr;
                 }
-                try { Thread.sleep(100); } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new RigException("interrupted while waiting for rigd", e);
+
+                String binPath = binary.path;
+
+                // If no binary found, download.
+                if (binPath == null) {
+                    Path destPath = Path.of(rigDir, "bin", "v" + RIGD_VERSION, "rigd");
+                    String url = BinaryDownloader.downloadUrl(RIGD_VERSION);
+                    BinaryDownloader.download(url, destPath);
+                    binPath = destPath.toString();
                 }
+
+                // Start rigd as a detached subprocess.
+                var pb = new ProcessBuilder(binPath, "--idle", "5m", "--rig-dir", rigDir);
+                if (!binary.override) {
+                    pb.command().addAll(java.util.List.of("--addr-file", addrFile.toString()));
+                }
+                pb.redirectErrorStream(false);
+
+                // Append stderr to log file.
+                Path logPath = Path.of(rigDir, "rigd.log");
+                pb.redirectError(ProcessBuilder.Redirect.appendTo(logPath.toFile()));
+                pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+
+                try {
+                    pb.start();
+                } catch (IOException e) {
+                    throw new RigException("start rigd: " + e.getMessage(), e);
+                }
+
+                // Poll for addr file.
+                long deadline = System.currentTimeMillis() + 10_000;
+                while (System.currentTimeMillis() < deadline) {
+                    addr = readAddrFile(addrFile);
+                    if (addr != null && !addr.isEmpty() && probeHealth(addr)) {
+                        return "http://" + addr;
+                    }
+                    try { Thread.sleep(100); } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RigException("interrupted while waiting for rigd", e);
+                    }
+                }
+
+                throw new RigException("rigd did not become healthy within 10s (log: " + logPath + ")");
+
+            } catch (IOException e) {
+                throw new RigException("acquire lock: " + e.getMessage(), e);
             }
-
-            throw new RigException("rigd did not become healthy within 10s (log: " + logPath + ")");
-
-        } catch (IOException e) {
-            throw new RigException("acquire lock: " + e.getMessage(), e);
         }
     }
 
