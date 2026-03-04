@@ -146,7 +146,7 @@ final class SpecConverter {
     private static SpecService s3ToSpec(S3Def d, HookRegistry registry) {
         var ingress = new SpecIngressSpec();
         ingress.protocol = "tcp";
-        ingress.container_port = 8333;
+        ingress.container_port = 9000;
 
         var svc = new SpecService();
         svc.type = "s3";

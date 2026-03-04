@@ -10,12 +10,20 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.time.Duration;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -341,28 +349,22 @@ class RigIntegrationTest {
 			String bucket = ep.attr("S3_BUCKET");
 			assertFalse(endpoint.isEmpty(), "S3_ENDPOINT should be set");
 			assertFalse(bucket.isEmpty(), "S3_BUCKET should be set");
-			assertEquals("rig", ep.attr("AWS_ACCESS_KEY_ID"));
-			assertEquals("rig", ep.attr("AWS_SECRET_ACCESS_KEY"));
+			assertEquals("rigadmin", ep.attr("AWS_ACCESS_KEY_ID"));
+			assertEquals("rigadmin", ep.attr("AWS_SECRET_ACCESS_KEY"));
 
-			// PUT an object then GET it back via the S3 HTTP API.
+			// PUT an object then GET it back via the S3 HTTP API (SigV4 auth).
 			var client = HttpClient.newHttpClient();
-			String objectUrl = "%s/%s/test.txt".formatted(endpoint, bucket);
+			String accessKey = ep.attr("AWS_ACCESS_KEY_ID");
+			String secretKey = ep.attr("AWS_SECRET_ACCESS_KEY");
 
-			var put = HttpRequest.newBuilder()
-				.uri(URI.create(objectUrl))
-				.timeout(Duration.ofSeconds(10))
-				.PUT(HttpRequest.BodyPublishers.ofString("hello s3"))
-				.build();
-			var putResp = client.send(put, HttpResponse.BodyHandlers.ofString());
+			var putUri = URI.create("%s/%s/test.txt".formatted(endpoint, bucket));
+			byte[] body = "hello s3".getBytes(StandardCharsets.UTF_8);
+			var putResp = s3Request(client, "PUT", putUri, body, accessKey, secretKey);
 			assertEquals(200, putResp.statusCode(),
 				"PUT should succeed, got: " + putResp.body());
 
-			var get = HttpRequest.newBuilder()
-				.uri(URI.create(objectUrl))
-				.timeout(Duration.ofSeconds(10))
-				.GET()
-				.build();
-			var getResp = client.send(get, HttpResponse.BodyHandlers.ofString());
+			var getUri = URI.create("%s/%s/test.txt".formatted(endpoint, bucket));
+			var getResp = s3Request(client, "GET", getUri, new byte[0], accessKey, secretKey);
 			assertEquals(200, getResp.statusCode());
 			assertEquals("hello s3", getResp.body());
 		}
@@ -426,5 +428,79 @@ class RigIntegrationTest {
 			.GET()
 			.build();
 		return client.send(request, HttpResponse.BodyHandlers.ofString());
+	}
+
+	/** Sends an S3 request with AWS SigV4 authentication. */
+	private static HttpResponse<String> s3Request(
+		HttpClient client, String method, URI uri, byte[] body,
+		String accessKey, String secretKey
+	) throws Exception {
+		var now = ZonedDateTime.now(ZoneOffset.UTC);
+		String amzDate = now.format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'"));
+		String dateStamp = now.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+		String region = "us-east-1";
+		String service = "s3";
+
+		String payloadHash = sha256Hex(body);
+		String host = uri.getHost() + (uri.getPort() > 0 ? ":" + uri.getPort() : "");
+		String canonicalHeaders = "host:" + host + "\n"
+			+ "x-amz-content-sha256:" + payloadHash + "\n"
+			+ "x-amz-date:" + amzDate + "\n";
+		String signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+
+		String canonicalRequest = method + "\n"
+			+ uri.getPath() + "\n"
+			+ "\n"
+			+ canonicalHeaders + "\n"
+			+ signedHeaders + "\n"
+			+ payloadHash;
+
+		String scope = dateStamp + "/" + region + "/" + service + "/aws4_request";
+		String stringToSign = "AWS4-HMAC-SHA256\n" + amzDate + "\n" + scope + "\n"
+			+ sha256Hex(canonicalRequest.getBytes(StandardCharsets.UTF_8));
+
+		byte[] signingKey = hmacSha256(
+			hmacSha256(
+				hmacSha256(
+					hmacSha256(
+						("AWS4" + secretKey).getBytes(StandardCharsets.UTF_8),
+						dateStamp
+					), region
+				), service
+			), "aws4_request"
+		);
+		String signature = HexFormat.of().formatHex(
+			hmacSha256(signingKey, stringToSign)
+		);
+
+		String authorization = "AWS4-HMAC-SHA256 Credential=%s/%s, SignedHeaders=%s, Signature=%s"
+			.formatted(accessKey, scope, signedHeaders, signature);
+
+		var builder = HttpRequest.newBuilder()
+			.uri(uri)
+			.timeout(Duration.ofSeconds(10))
+			.header("Authorization", authorization)
+			.header("x-amz-date", amzDate)
+			.header("x-amz-content-sha256", payloadHash);
+
+		if ("PUT".equals(method)) {
+			builder.PUT(HttpRequest.BodyPublishers.ofByteArray(body));
+		} else {
+			builder.GET();
+		}
+
+		return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+	}
+
+	private static String sha256Hex(byte[] data) throws Exception {
+		return HexFormat.of().formatHex(
+			MessageDigest.getInstance("SHA-256").digest(data)
+		);
+	}
+
+	private static byte[] hmacSha256(byte[] key, String data) throws Exception {
+		var mac = Mac.getInstance("HmacSHA256");
+		mac.init(new SecretKeySpec(key, "HmacSHA256"));
+		return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
 	}
 }

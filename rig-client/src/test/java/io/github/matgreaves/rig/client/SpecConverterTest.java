@@ -192,7 +192,7 @@ class SpecConverterTest {
         assertNull(svc.config);
         assertNotNull(svc.ingresses.get("default"));
         assertEquals("tcp", svc.ingresses.get("default").protocol);
-        assertEquals(8333, svc.ingresses.get("default").container_port);
+        assertEquals(9000, svc.ingresses.get("default").container_port);
     }
 
     @Test
