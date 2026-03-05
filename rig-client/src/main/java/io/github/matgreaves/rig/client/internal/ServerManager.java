@@ -20,7 +20,7 @@ import java.time.Duration;
 public final class ServerManager {
     private ServerManager() {}
 
-    public static final String RIGD_VERSION = "0.7.0";
+    public static final String RIGD_VERSION = "0.8.0";
 
     // JVM-level lock to prevent OverlappingFileLockException when parallel
     // tests call ensureServer() concurrently. The file lock alone handles
