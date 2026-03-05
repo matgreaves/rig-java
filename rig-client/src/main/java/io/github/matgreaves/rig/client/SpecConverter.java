@@ -43,6 +43,7 @@ final class SpecConverter {
             case RedisDef d -> redisToSpec(d, registry);
             case S3Def d -> s3ToSpec(d, registry);
             case SqsDef d -> sqsToSpec(d, registry);
+            case KafkaDef d -> kafkaToSpec(d, registry);
             case CustomDef d -> customToSpec(d, registry);
         };
     }
@@ -189,6 +190,29 @@ final class SpecConverter {
         return svc;
     }
 
+    private static SpecService kafkaToSpec(KafkaDef d, HookRegistry registry) {
+        Map<String, String> config = null;
+        if (!d.image.isEmpty()) {
+            config = Map.of("image", d.image);
+        }
+
+        var kafkaIngress = new SpecIngressSpec();
+        kafkaIngress.protocol = "kafka";
+        kafkaIngress.container_port = 9092;
+
+        var schemaRegistryIngress = new SpecIngressSpec();
+        schemaRegistryIngress.protocol = "http";
+        schemaRegistryIngress.container_port = 8081;
+
+        var svc = new SpecService();
+        svc.type = "kafka";
+        svc.config = config;
+        svc.ingresses = Map.of("default", kafkaIngress, "schema-registry", schemaRegistryIngress);
+        svc.egresses = egressesToSpec(d.egresses);
+        svc.hooks = hooksToSpec(d.prestartHooks, d.initHooks, registry);
+        return svc;
+    }
+
     private static SpecService customToSpec(CustomDef d, HookRegistry registry) {
         var svc = new SpecService();
         svc.type = d.svcType;
@@ -268,6 +292,14 @@ final class SpecConverter {
             case HookDef.Exec exec -> {
                 spec.type = "exec";
                 spec.config = Map.of("command", exec.command());
+            }
+            case HookDef.Schema schema -> {
+                spec.type = "schema";
+                spec.config = Map.of(
+                        "subject", schema.subject(),
+                        "schema_type", schema.schemaType(),
+                        "schema", schema.schema()
+                );
             }
         }
         return spec;

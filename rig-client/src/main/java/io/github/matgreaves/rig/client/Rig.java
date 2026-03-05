@@ -149,6 +149,11 @@ public final class Rig {
         return new SqsDef();
     }
 
+    /** Creates a Kafka service definition using Redpanda. */
+    public static KafkaDef kafka() {
+        return new KafkaDef();
+    }
+
     /** Creates a Temporal service definition. */
     public static TemporalDef temporal() {
         return new TemporalDef();

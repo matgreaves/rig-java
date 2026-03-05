@@ -16,4 +16,7 @@ public sealed interface HookDef {
 
     /** A command executed server-side via docker exec. */
     record Exec(List<String> command) implements HookDef {}
+
+    /** A schema registration hook for Kafka schema registry. */
+    record Schema(String subject, String schemaType, String schema) implements HookDef {}
 }
