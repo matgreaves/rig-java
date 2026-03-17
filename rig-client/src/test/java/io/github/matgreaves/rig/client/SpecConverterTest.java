@@ -17,7 +17,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("db", Rig.postgres()),
-                registry, true);
+                registry, true, null);
 
         assertNotNull(spec.host_env, "host_env should be set");
         assertFalse(spec.host_env.isEmpty(), "host_env should not be empty");
@@ -30,7 +30,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("api", Rig.go_("./cmd/api")),
-                registry, true);
+                registry, true, null);
 
         var api = spec.services.get("api");
         String json = gson.toJson(api.config);
@@ -43,7 +43,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("db", Rig.postgres()),
-                registry, true);
+                registry, true, null);
 
         assertEquals("test", spec.name);
         assertTrue(spec.observe);
@@ -62,7 +62,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("db", Rig.postgres().image("postgres:15")),
-                registry, true);
+                registry, true, null);
 
         var db = spec.services.get("db");
         String json = gson.toJson(db.config);
@@ -74,7 +74,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("api", Rig.go_("/abs/path/cmd/api").egress("db").args("--verbose")),
-                registry, true);
+                registry, true, null);
 
         var api = spec.services.get("api");
         assertEquals("go", api.type);
@@ -91,7 +91,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("nginx", Rig.container("nginx:alpine").port(80).env("FOO", "bar")),
-                registry, true);
+                registry, true, null);
 
         var svc = spec.services.get("nginx");
         assertEquals("container", svc.type);
@@ -104,7 +104,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("temporal", Rig.temporal().namespace("my-ns")),
-                registry, true);
+                registry, true, null);
 
         var svc = spec.services.get("temporal");
         assertEquals("temporal", svc.type);
@@ -119,7 +119,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("svc", Rig.func(() -> Thread.sleep(Long.MAX_VALUE))),
-                registry, true);
+                registry, true, null);
 
         var svc = spec.services.get("svc");
         assertEquals("client", svc.type);
@@ -132,7 +132,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("db", Rig.postgres().initSql("CREATE TABLE t (id INT)")),
-                registry, true);
+                registry, true, null);
 
         var db = spec.services.get("db");
         assertNotNull(db.hooks);
@@ -146,7 +146,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("api", Rig.go_("/abs/path").prestartHook(w -> {})),
-                registry, true);
+                registry, true, null);
 
         var api = spec.services.get("api");
         assertNotNull(api.hooks);
@@ -161,7 +161,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("db", Rig.postgres()),
-                registry, false);
+                registry, false, null);
 
         assertFalse(spec.observe);
     }
@@ -171,7 +171,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("svc", Rig.custom("my-type", Map.of("key", "value")).args("--flag")),
-                registry, true);
+                registry, true, null);
 
         var svc = spec.services.get("svc");
         assertEquals("my-type", svc.type);
@@ -184,7 +184,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("cache", Rig.redis()),
-                registry, true);
+                registry, true, null);
 
         var svc = spec.services.get("cache");
         assertEquals("redis", svc.type);
@@ -199,7 +199,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("cache", Rig.redis().image("redis:7-alpine")),
-                registry, true);
+                registry, true, null);
 
         var svc = spec.services.get("cache");
         String json = gson.toJson(svc.config);
@@ -211,7 +211,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("store", Rig.s3()),
-                registry, true);
+                registry, true, null);
 
         var svc = spec.services.get("store");
         assertEquals("s3", svc.type);
@@ -226,7 +226,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("queue", Rig.sqs()),
-                registry, true);
+                registry, true, null);
 
         var svc = spec.services.get("queue");
         assertEquals("sqs", svc.type);
@@ -241,7 +241,7 @@ class SpecConverterTest {
         var registry = new HookRegistry();
         var spec = SpecConverter.toSpec("test",
                 Map.of("svc", Rig.process("/usr/bin/myapp").dir("/work")),
-                registry, true);
+                registry, true, null);
 
         var svc = spec.services.get("svc");
         assertEquals("process", svc.type);

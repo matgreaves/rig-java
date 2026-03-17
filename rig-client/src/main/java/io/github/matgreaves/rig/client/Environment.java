@@ -24,6 +24,7 @@ public final class Environment implements AutoCloseable {
     private final RigHttpClient httpClient;
     private final String serverUrl;
     private final FuncThreads funcThreads;
+    private final boolean skipDelete;
     private volatile boolean testFailed;
 
     Environment(
@@ -32,7 +33,8 @@ public final class Environment implements AutoCloseable {
             String envDir,
             RigHttpClient httpClient,
             String serverUrl,
-            FuncThreads funcThreads
+            FuncThreads funcThreads,
+            boolean skipDelete
     ) {
         this.id = id;
         this.services = Map.copyOf(services);
@@ -40,6 +42,7 @@ public final class Environment implements AutoCloseable {
         this.httpClient = httpClient;
         this.serverUrl = serverUrl;
         this.funcThreads = funcThreads;
+        this.skipDelete = skipDelete;
     }
 
     /**
@@ -118,6 +121,12 @@ public final class Environment implements AutoCloseable {
     @Override
     public void close() {
         funcThreads.interruptAll();
+        if (skipDelete) {
+            System.out.println("rig: environment has a TTL — skipping DELETE.");
+            System.out.println("rig: to check status:  rig ps");
+            System.out.println("rig: to tear down now: rig down " + id);
+            return;
+        }
         try {
             String url = "%s/environments/%s?log=true".formatted(serverUrl, id);
             if (shouldPreserve()) url += "&preserve=true";

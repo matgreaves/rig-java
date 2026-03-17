@@ -15,4 +15,7 @@ public sealed interface RigOption {
 
     /** Disables transparent traffic proxying. */
     record WithoutObserve() implements RigOption {}
+
+    /** Sets the environment TTL (time-to-live). When set, the server-side timer handles teardown. */
+    record WithTTL(Duration duration) implements RigOption {}
 }

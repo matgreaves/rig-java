@@ -18,13 +18,17 @@ final class SpecConverter {
             String name,
             Map<String, ServiceDef> services,
             HookRegistry registry,
-            boolean observe
+            boolean observe,
+            String ttl
     ) {
         var spec = new SpecEnvironment();
         spec.name = name;
         spec.observe = observe;
         spec.host_env = new LinkedHashMap<>(System.getenv());
         spec.dir = System.getProperty("user.dir");
+        if (ttl != null && !ttl.isEmpty()) {
+            spec.ttl = ttl;
+        }
         spec.services = new LinkedHashMap<>();
         for (var entry : services.entrySet()) {
             spec.services.put(entry.getKey(), serviceToSpec(entry.getValue(), registry));

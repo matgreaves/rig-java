@@ -22,6 +22,7 @@ public final class EventDispatcher {
     private final String envId;
     private final HookRegistry registry;
     private final FuncThreads funcThreads;
+    private final boolean skipDelete;
     private final Gson gson = new Gson();
     private String lastStallMessage = "";
 
@@ -30,13 +31,15 @@ public final class EventDispatcher {
             String serverUrl,
             String envId,
             HookRegistry registry,
-            FuncThreads funcThreads
+            FuncThreads funcThreads,
+            boolean skipDelete
     ) {
         this.httpClient = httpClient;
         this.serverUrl = serverUrl;
         this.envId = envId;
         this.registry = registry;
         this.funcThreads = funcThreads;
+        this.skipDelete = skipDelete;
     }
 
     /**
@@ -221,7 +224,7 @@ public final class EventDispatcher {
                 services.put(svcEntry.getKey(), new ResolvedService(ingresses));
             }
         }
-        return new Environment(envId, services, ev.env_dir, httpClient, serverUrl, funcThreads);
+        return new Environment(envId, services, ev.env_dir, httpClient, serverUrl, funcThreads, skipDelete);
     }
 
     private void postCallbackResult(String serviceName, String requestId, String errorMsg) {

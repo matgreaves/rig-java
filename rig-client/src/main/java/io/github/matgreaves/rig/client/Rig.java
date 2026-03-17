@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import io.github.matgreaves.rig.client.internal.FuncThreads;
 import io.github.matgreaves.rig.client.internal.RigHttpClient;
 import io.github.matgreaves.rig.client.internal.ServerManager;
+import io.github.matgreaves.rig.client.internal.WireTypes;
 
 import java.time.Duration;
 import java.util.List;
@@ -47,14 +48,30 @@ public final class Rig {
         String serverUrl = System.getenv("RIG_SERVER_ADDR");
         Duration startupTimeout = Duration.ofMinutes(2);
         boolean observe = true;
+        Duration ttl = null;
+
+        // Default TTL from environment variable.
+        String rigTtlEnv = System.getenv("RIG_TTL");
+        if (rigTtlEnv != null && !rigTtlEnv.isEmpty()) {
+            ttl = WireTypes.parseGoDuration(rigTtlEnv);
+        }
 
         for (RigOption opt : opts) {
             switch (opt) {
                 case RigOption.WithServer ws -> serverUrl = ws.url();
                 case RigOption.WithTimeout wt -> startupTimeout = wt.duration();
                 case RigOption.WithoutObserve ignored -> observe = false;
+                case RigOption.WithTTL wt -> ttl = wt.duration();
             }
         }
+
+        // Validate TTL.
+        if (ttl != null && (ttl.isZero() || ttl.isNegative())) {
+            throw new RigException("rig: TTL must be positive, got: " + ttl);
+        }
+
+        String ttlWire = ttl != null ? WireTypes.durationToWire(ttl) : null;
+        boolean skipDelete = ttl != null;
 
         // Ensure server is running.
         if (serverUrl == null || serverUrl.isEmpty()) {
@@ -64,7 +81,7 @@ public final class Rig {
 
         // Convert spec.
         var registry = new HookRegistry();
-        var specEnv = SpecConverter.toSpec(name, services, registry, observe);
+        var specEnv = SpecConverter.toSpec(name, services, registry, observe, ttlWire);
 
         // POST /environments
         var httpClient = new RigHttpClient();
@@ -98,7 +115,7 @@ public final class Rig {
         var funcThreads = new FuncThreads();
 
         // Stream SSE events until environment.up.
-        var dispatcher = new EventDispatcher(httpClient, serverUrl, envId, registry, funcThreads);
+        var dispatcher = new EventDispatcher(httpClient, serverUrl, envId, registry, funcThreads, skipDelete);
         try {
             return dispatcher.streamUntilReady();
         } catch (Exception e) {
@@ -184,6 +201,11 @@ public final class Rig {
     /** Disables transparent traffic proxying. */
     public static RigOption withoutObserve() {
         return new RigOption.WithoutObserve();
+    }
+
+    /** Sets the environment TTL. When set, the server-side timer handles teardown. */
+    public static RigOption withTTL(Duration duration) {
+        return new RigOption.WithTTL(duration);
     }
 
     // --- Internal DTOs ---
